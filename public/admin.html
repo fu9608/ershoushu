@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>审核投稿（管理员）</title>
+  <style>
+    :root { --orange:#FF7A00; --bg:#FFF8F1; --text:#333; }
+    body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    header { background:var(--orange); color:#fff; padding:16px; }
+    .container { max-width:960px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); padding:16px; margin-bottom:12px; }
+    .title { font-weight:700; font-size:18px; }
+    .meta { color:#666; font-size:14px; margin-top:6px; }
+    .actions { margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .btn { background:var(--orange); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+    input[type="number"] { width:120px; padding:6px; border:1px solid #ddd; border-radius:8px; }
+    .thumb { width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid #eee; margin-right:6px; }
+    .flex { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .warn { background:#fff3cd; color:#664d03; padding:8px; border-radius:8px; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>审核投稿（管理员）</h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="warn">提示：本页需要管理员密钥。请先在首页输入密钥并点击“管理员登录”。</div>
+    <div id="list"></div>
+  </main>
+
+  <script>
+    const ADMIN_TOKEN = sessionStorage.getItem('ADMIN_TOKEN') || '';
+
+    async function loadSubmissions() {
+      if (!ADMIN_TOKEN) {
+        alert('请先在首页输入管理员密钥并点击“管理员登录”');
+        return;
+      }
+      const res = await fetch('/api/submissions', {
+        headers: { 'x-admin-token': ADMIN_TOKEN }
+      });
+      const data = await res.json();
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+
+      if (!Array.isArray(data)) {
+        list.innerHTML = '<div class="card">加载失败：' + JSON.stringify(data) + '</div>';
+        return;
+      }
+
+      data.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        const imgs = (() => {
+          try { return JSON.parse(s.images || '[]'); } catch { return []; }
+        })();
+        div.innerHTML = `
+          <div class="title">${s.title} ｜ 数量：${s.quantity} ｜ 品相：${s.condition_grade || '-'}
+            ${s.isbn ? `｜ ISBN：${s.isbn}` : ''}
+          </div>
+          <div class="meta">联系方式：${s.contact || '-'}</div>
+          <div class="meta">投稿状态：<b>${s.status}</b> ｜ 自动估价：${s.auto_quote ?? '-'}</div>
+          <div class="flex">${imgs.map(u => `<img class="thumb" src="${u}" />`).join('')}</div>
+          <div class="actions">
+            <label>最终报价（元/本）：</label>
+            <input type="number" step="0.01" id="quote_${s.id}" placeholder="${s.auto_quote ?? ''}">
+            <button class="btn" onclick="review(${s.id}, 'approved')">通过</button>
+            <button class="btn" onclick="review(${s.id}, 'rejected')">驳回</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    async function review(id, status) {
+      const quoteInput = document.getElementById('quote_' + id);
+      const final_quote = quoteInput && quoteInput.value ? Number(quoteInput.value) : null;
+      const res = await fetch('/api/submissions/' + id + '/review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': ADMIN_TOKEN
+        },
+        body: JSON.stringify({ status, final_quote, reviewer_id: 'admin' })
+      });
+      const data = await res.json();
+      if (data.updated) {
+        alert('操作成功');
+        loadSubmissions();
+      } else {
+        alert('操作失败：' + JSON.stringify(data));
+      }
+    }
+
+    loadSubmissions();
+  </script>
+</body>
+</html>
