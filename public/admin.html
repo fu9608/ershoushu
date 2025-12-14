@@ -40,7 +40,8 @@
         alert('请先在首页输入管理员密钥并点击“管理员登录”');
         return;
       }
-      const res = await fetch('/api/submissions', {
+      // 拉取待审核（pending）列表
+      const res = await fetch('/api/submissions/pending', {
         headers: { 'x-admin-token': ADMIN_TOKEN }
       });
       const data = await res.json();
@@ -55,6 +56,7 @@
       data.forEach(s => {
         const div = document.createElement('div');
         div.className = 'card';
+        div.id = 'submission_' + s.id;
         const imgs = (() => {
           try { return JSON.parse(s.images || '[]'); } catch { return []; }
         })();
@@ -89,8 +91,9 @@
       });
       const data = await res.json();
       if (data.updated) {
-        alert('操作成功');
-        loadSubmissions();
+        // 审核成功后，直接移除该卡片（待审核区消失）
+        const card = document.getElementById('submission_' + id);
+        if (card) card.remove();
       } else {
         alert('操作失败：' + JSON.stringify(data));
       }
