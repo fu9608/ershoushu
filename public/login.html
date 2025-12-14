@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>登录/注册</title>
+  <style>
+    body { font-family: system-ui; margin:0; background:#FFF8F1; }
+    .container { max-width:480px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); padding:16px; }
+    label { display:block; margin:10px 0 6px; font-weight:600; }
+    input { width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; }
+    .btn { background:#FF7A00; color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; margin-top:12px; width:100%; }
+    .link { margin-top:8px; color:#555; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h2>登录</h2>
+      <label>用户名</label>
+      <input id="login_user" />
+      <label>密码</label>
+      <input id="login_pass" type="password" />
+      <button class="btn" onclick="login()">登录</button>
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <h2>注册</h2>
+      <label>用户名</label>
+      <input id="reg_user" />
+      <label>密码</label>
+      <input id="reg_pass" type="password" />
+      <button class="btn" onclick="register()">注册</button>
+    </div>
+
+    <div class="link">
+      <a href="/static/submit.html">返回卖书投稿</a> ｜ <a href="/static/index.html">返回首页</a> ｜ <a href="/static/my.html">我的投稿</a>
+    </div>
+  </div>
+
+  <script>
+    async function register() {
+      const username = document.getElementById('reg_user').value.trim();
+      const password = document.getElementById('reg_pass').value.trim();
+      if (!username || !password) { alert('请输入用户名和密码'); return; }
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (res.ok) alert('注册成功，请登录');
+      else alert('注册失败：' + JSON.stringify(data));
+    }
+    async function login() {
+      const username = document.getElementById('login_user').value.trim();
+      const password = document.getElementById('login_pass').value.trim();
+      if (!username || !password) { alert('请输入用户名和密码'); return; }
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        sessionStorage.setItem('USER_TOKEN', data.token);
+        alert('登录成功');
+        location.href = '/static/my.html';
+      } else {
+        alert('登录失败：' + JSON.stringify(data));
+      }
+    }
+  </script>
+</body>
+</html>

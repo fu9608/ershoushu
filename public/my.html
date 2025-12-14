@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>我的投稿</title>
+  <style>
+    body { font-family: system-ui; margin:0; background:#FFF8F1; }
+    header { background:#FF7A00; color:#fff; padding:16px; }
+    .container { max-width:960px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); padding:16px; margin-bottom:12px; }
+    .title { font-weight:700; font-size:18px; }
+    .meta { color:#666; font-size:14px; margin-top:6px; }
+    .thumb { width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid #eee; margin-right:6px; }
+    .flex { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <header><div class="container"><h1>我的投稿</h1></div></header>
+  <main class="container">
+    <div id="list"></div>
+    <div style="margin-top:8px;">
+      <a href="/static/submit.html">去投稿卖书</a> ｜ <a href="/static/index.html">首页</a>
+    </div>
+  </main>
+
+  <script>
+    async function loadMine() {
+      const token = sessionStorage.getItem('USER_TOKEN');
+      if (!token) {
+        alert('请先登录');
+        location.href = '/static/login.html';
+        return;
+      }
+      const res = await fetch('/api/me/submissions', { headers: { 'x-user-token': token }});
+      const data = await res.json();
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+
+      if (!Array.isArray(data) || !data.length) {
+        list.innerHTML = '<div class="card">暂无投稿</div>';
+        return;
+      }
+
+      data.forEach(s => {
+        const imgs = (() => { try { return JSON.parse(s.images || '[]'); } catch { return []; } })();
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <div class="title">${s.title} ｜ 数量：${s.quantity} ｜ 品相：${s.condition_grade || '-'}
+            ${s.isbn ? `｜ ISBN：${s.isbn}` : ''}
+          </div>
+          <div class="meta">投稿状态：<b>${s.status}</b> ｜ 最终报价：${s.final_quote ?? '-'}</div>
+          <div class="flex">${imgs.map(u => `<img class="thumb" src="${u}" />`).join('')}</div>
+        `;
+        list.appendChild(div);
+      });
+    }
+    loadMine();
+  </script>
+</body>
+</html>
