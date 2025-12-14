@@ -22,6 +22,8 @@
   <div class="container">
     <h2>我要卖书</h2>
     <div class="card">
+      <div class="hint">请先登录后再提交卖书信息。没有账号可在登录页注册。</div>
+      <div class="hint"><a href="/static/login.html">去登录/注册</a> ｜ <a href="/static/my.html">我的投稿</a></div>
       <form id="form">
         <input type="hidden" id="demand_id" />
 
@@ -92,6 +94,15 @@
 
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // 必须登录后才能提交
+      const userToken = sessionStorage.getItem('USER_TOKEN');
+      if (!userToken) {
+        alert('请先登录后再提交卖书信息');
+        location.href = '/static/login.html';
+        return;
+      }
+
       const form = e.target;
       const body = {
         demand_id: demandId || null,
@@ -105,13 +116,16 @@
       };
       const res = await fetch('/api/submissions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-token': userToken
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.id) {
         alert(`提交成功${data.auto_quote ? '，系统初步估价：' + data.auto_quote + '元/本' : ''}`);
-        location.href = '/static/index.html';
+        location.href = '/static/my.html';
       } else {
         alert('提交失败：' + JSON.stringify(data));
       }
