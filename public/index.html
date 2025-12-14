@@ -16,8 +16,8 @@
     .btn { background:var(--orange); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
     .btn.secondary { background:#fff; color:var(--orange); border:1px solid var(--orange); }
     .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    .search { display:flex; gap:8px; margin:12px 0; }
-    input[type="text"] { flex:1; padding:8px; border-radius:8px; border:1px solid #ddd; }
+    .search { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; align-items:center; }
+    input[type="text"], input[type="password"] { padding:8px; border-radius:8px; border:1px solid #ddd; }
     .badge { display:inline-block; background:rgba(255,122,0,0.1); color:var(--orange); padding:2px 8px; border-radius:999px; font-size:12px; margin-left:6px; }
   </style>
 </head>
@@ -30,10 +30,20 @@
   </header>
 
   <main class="container">
+    <!-- 搜索与入口区 -->
     <div class="search">
-      <input id="q" type="text" placeholder="搜索书名/ISBN/出版社…" />
+      <input id="q" type="text" placeholder="搜索书名/ISBN/出版社…" style="flex:1;min-width:220px;" />
       <button class="btn" onclick="loadDemands()">搜索</button>
-      <a class="btn secondary" href="/static/publish.html">发布回收需求（运营）</a>
+
+      <!-- 管理员登录：输入密钥后显示运营入口 -->
+      <input id="adminToken" type="password" placeholder="管理员密钥" style="max-width:220px;" />
+      <button class="btn secondary" onclick="adminLogin()">管理员登录</button>
+
+      <!-- 仅管理员可见的入口 -->
+      <a id="publishLink" class="btn secondary" href="/static/publish.html" style="display:none">发布回收需求（运营）</a>
+      <a id="adminLink" class="btn secondary" href="/static/admin.html" style="display:none">审核投稿（管理员）</a>
+
+      <!-- 普通用户入口 -->
       <a class="btn secondary" href="/static/submit.html">我要卖书（用户投稿）</a>
     </div>
 
@@ -41,6 +51,26 @@
   </main>
 
   <script>
+    // 初始化时，如果已有管理员密钥，则直接显示管理员入口
+    (function initAdmin() {
+      const token = sessionStorage.getItem('ADMIN_TOKEN');
+      if (token) {
+        document.getElementById('publishLink').style.display = 'inline-block';
+        document.getElementById('adminLink').style.display = 'inline-block';
+      }
+    })();
+
+    // 管理员登录：保存密钥用于受保护接口调用
+    function adminLogin() {
+      const token = document.getElementById('adminToken').value.trim();
+      if (!token) return alert('请输入管理员密钥');
+      sessionStorage.setItem('ADMIN_TOKEN', token);
+      document.getElementById('publishLink').style.display = 'inline-block';
+      document.getElementById('adminLink').style.display = 'inline-block';
+      alert('管理员模式已开启');
+    }
+
+    // 加载需求列表
     async function loadDemands() {
       const q = document.getElementById('q').value.trim();
       const res = await fetch('/api/demands');
@@ -53,7 +83,7 @@
       ) : data;
 
       if (!filtered.length) {
-        list.innerHTML = '<div class="card">暂无需求，点击右上角“发布回收需求”添加</div>';
+        list.innerHTML = '<div class="card">暂无需求，点击“管理员登录”后可发布回收需求</div>';
         return;
       }
 
@@ -81,6 +111,7 @@
         list.appendChild(div);
       });
     }
+
     loadDemands();
   </script>
 </body>
