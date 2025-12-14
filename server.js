@@ -1,6 +1,6 @@
 /**
  * 最小可运行的校园二手书回收发布平台后端
- * 功能：需求发布、需求列表、用户投稿、图片上传
+ * 功能：需求发布（管理员）、需求列表（公开）、用户投稿（公开）、图片上传（公开）、审核投稿（管理员）
  */
 const express = require('express');
 const multer = require('multer');
@@ -20,6 +20,16 @@ const UPLOAD_DIR = path.join(PUBLIC_DIR, 'uploads');
 if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR);
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/static', express.static(PUBLIC_DIR));
+
+// 简易管理员认证中间件
+function requireAdmin(req, res, next) {
+  const token = req.headers['x-admin-token'] || req.query.admin_token || (req.body && req.body.admin_token);
+  const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'dev-admin'; // 生产环境请在 Render 上配置更复杂的密钥
+  if (token !== ADMIN_TOKEN) {
+    return res.status(403).json({ error: 'forbidden: admin only' });
+  }
+  next();
+}
 
 // 配置 multer 处理图片上传
 const storage = multer.diskStorage({
@@ -79,8 +89,8 @@ db.serialize(() => {
 // 工具函数
 const now = () => new Date().toISOString();
 
-// API: 创建回收需求
-app.post('/api/demands', (req, res) => {
+// API: 创建回收需求（管理员专用）
+app.post('/api/demands', requireAdmin, (req, res) => {
   const {
     title, isbn, publisher, edition,
     required_quantity, unit_price_min, unit_price_max,
@@ -111,7 +121,7 @@ app.post('/api/demands', (req, res) => {
   );
 });
 
-// API: 回收需求列表
+// API: 回收需求列表（公开）
 app.get('/api/demands', (_req, res) => {
   db.all(`SELECT * FROM recycle_demands WHERE status='online' ORDER BY created_at DESC`, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -119,7 +129,7 @@ app.get('/api/demands', (_req, res) => {
   });
 });
 
-// API: 上传图片（多图）
+// API: 上传图片（多图，公开）
 app.post('/api/upload', upload.array('images', 6), (req, res) => {
   const files = (req.files || []).map(f => `/static/uploads/${f.filename}`);
   res.json({ files });
@@ -136,7 +146,7 @@ function autoQuote(unitMin, unitMax, conditionGrade = '九成新') {
   return Number((base * factor).toFixed(2));
 }
 
-// API: 用户投稿
+// API: 用户投稿（公开）
 app.post('/api/submissions', (req, res) => {
   const { demand_id, title, isbn, quantity, condition_grade, expected_price, images, contact } = req.body;
   if (!title || !quantity) return res.status(400).json({ error: 'title 与 quantity 为必填' });
@@ -182,9 +192,17 @@ app.post('/api/submissions', (req, res) => {
   }
 });
 
-// API: 获取某需求下的投稿列表（运营查看）
+// API: 获取某需求下的投稿列表（公开，用于详情页）
 app.get('/api/demands/:id/submissions', (req, res) => {
   db.all(`SELECT * FROM user_submissions WHERE demand_id=? ORDER BY created_at DESC`, [req.params.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// API: 管理员查看所有投稿
+app.get('/api/submissions', requireAdmin, (req, res) => {
+  db.all(`SELECT * FROM user_submissions ORDER BY created_at DESC`, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
