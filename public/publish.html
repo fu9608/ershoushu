@@ -19,7 +19,7 @@
 </head>
 <body>
   <div class="container">
-    <h2>发布回收需求</h2>
+    <h2>发布回收需求（管理员）</h2>
     <div class="card">
       <form id="form">
         <label>书名</label>
@@ -80,12 +80,13 @@
         <img id="coverPreview" class="preview" style="display:none" />
 
         <button class="btn" type="submit">发布</button>
-        <div class="hint">发布后可在首页看到该需求。</div>
+        <div class="hint">提示：本页需要管理员密钥。请先在首页输入密钥并点击“管理员登录”。</div>
       </form>
     </div>
   </div>
 
   <script>
+    // 封面图片上传
     const coverInput = document.getElementById('cover');
     const coverPreview = document.getElementById('coverPreview');
     let coverUrl = '';
@@ -97,13 +98,22 @@
       fd.append('images', files[0]);
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const data = await res.json();
-      coverUrl = data.files[0];
-      coverPreview.src = coverUrl;
-      coverPreview.style.display = 'block';
+      coverUrl = data.files && data.files[0] ? data.files[0] : '';
+      if (coverUrl) {
+        coverPreview.src = coverUrl;
+        coverPreview.style.display = 'block';
+      }
     });
 
+    // 发布提交（必须携带管理员密钥）
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const adminToken = sessionStorage.getItem('ADMIN_TOKEN');
+      if (!adminToken) {
+        alert('请先在首页输入管理员密钥并点击“管理员登录”。');
+        return;
+      }
+
       const form = e.target;
       const body = {
         title: form.title.value,
@@ -117,19 +127,30 @@
         campus: form.campus.value || null,
         deadline: form.deadline.value || null,
         condition_requirements: form.condition_requirements.value || null,
-        cover_image_url: coverUrl || null
+        cover_image_url: coverUrl || null,
+        // 同时在请求体里带上 admin_token，方便中间件从 body 读取
+        admin_token: adminToken
       };
-      const res = await fetch('/api/demands', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.id) {
-        alert('发布成功');
-        location.href = '/static/index.html';
-      } else {
-        alert('发布失败：' + JSON.stringify(data));
+
+      try {
+        const res = await fetch('/api/demands', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // 关键：请求头也带上管理员密钥
+            'x-admin-token': adminToken
+          },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (res.ok && data.id) {
+          alert('发布成功');
+          location.href = '/static/index.html';
+        } else {
+          alert('发布失败：' + JSON.stringify(data));
+        }
+      } catch (err) {
+        alert('网络错误：' + err.message);
       }
     });
   </script>
