@@ -1,6 +1,7 @@
 /**
  * 校园二手书回收发布平台后端
- * 功能：需求发布（管理员）、需求列表（公开）、用户投稿（用户登录）、图片上传（公开）、审核投稿（管理员）、用户登录/注册、我的投稿
+ * 功能：需求发布（管理员）、需求列表（公开）、用户投稿（用户登录）、图片上传（公开）
+ *      审核投稿（管理员）、用户登录/注册、我的投稿、删除回收需求（管理员）
  */
 const express = require('express');
 const multer = require('multer');
@@ -171,6 +172,19 @@ app.post('/api/demands', requireAdmin, (req, res) => {
       res.json({ id: this.lastID });
     }
   );
+});
+
+// API: 删除回收需求（管理员专用）
+app.delete('/api/demands/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid demand id' });
+
+  // 直接物理删除；如果你更偏好下线，可改为更新 status='offline'
+  const stmt = db.prepare(`DELETE FROM recycle_demands WHERE id=?`);
+  stmt.run(id, function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ deleted: this.changes });
+  });
 });
 
 // API: 回收需求列表（公开）
