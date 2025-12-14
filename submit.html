@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>我要卖书（用户投稿）</title>
+  <style>
+    :root { --orange:#FF7A00; }
+    body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; margin:0; background:#FFF8F1; }
+    .container { max-width:680px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); padding:16px; }
+    label { display:block; margin:10px 0 6px; font-weight:600; }
+    input, textarea, select { width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .btn { background:var(--orange); color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; margin-top:12px; }
+    .hint { color:#666; font-size:12px; }
+    .thumb { width:110px; height:110px; object-fit:cover; border-radius:8px; border:1px solid #eee; margin-right:8px; }
+    .flex { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>我要卖书</h2>
+    <div class="card">
+      <form id="form">
+        <input type="hidden" id="demand_id" />
+
+        <label>书名</label>
+        <input name="title" required placeholder="例如：高等数学（同济七版）" />
+
+        <div class="row">
+          <div>
+            <label>数量（本）</label>
+            <input type="number" name="quantity" required min="1" />
+          </div>
+          <div>
+            <label>品相</label>
+            <select name="condition_grade">
+              <option>九成新</option>
+              <option>八成新</option>
+              <option>七成新</option>
+              <option>有笔记</option>
+              <option>其他</option>
+            </select>
+          </div>
+        </div>
+
+        <label>ISBN（可选）</label>
+        <input name="isbn" />
+
+        <label>期望价格（可选，元/本）</label>
+        <input type="number" step="0.01" name="expected_price" />
+
+        <label>图片（封面、版权页、内页）</label>
+        <input type="file" id="images" accept="image/*" multiple />
+        <div id="preview" class="flex"></div>
+
+        <label>联系方式（微信/手机号）</label>
+        <input name="contact" required placeholder="便于联系" />
+
+        <button class="btn" type="submit">提交投稿</button>
+        <div class="hint">提交后将进入平台审核，审核通过会生成订单并与您联系。</div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // 读取 URL 中的 demand_id
+    const params = new URLSearchParams(location.search);
+    const demandId = params.get('demand_id');
+    if (demandId) document.getElementById('demand_id').value = demandId;
+
+    const imgInput = document.getElementById('images');
+    const preview = document.getElementById('preview');
+    let imageUrls = [];
+
+    imgInput.addEventListener('change', async () => {
+      preview.innerHTML = '';
+      imageUrls = [];
+      const fd = new FormData();
+      for (const file of imgInput.files) fd.append('images', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      imageUrls = data.files || [];
+      imageUrls.forEach(url => {
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'thumb';
+        preview.appendChild(img);
+      });
+    });
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const body = {
+        demand_id: demandId || null,
+        title: form.title.value,
+        isbn: form.isbn.value || null,
+        quantity: Number(form.quantity.value),
+        condition_grade: form.condition_grade.value || null,
+        expected_price: form.expected_price.value ? Number(form.expected_price.value) : null,
+        images: imageUrls,
+        contact: form.contact.value
+      };
+      const res = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.id) {
+        alert(`提交成功${data.auto_quote ? '，系统初步估价：' + data.auto_quote + '元/本' : ''}`);
+        location.href = '/static/index.html';
+      } else {
+        alert('提交失败：' + JSON.stringify(data));
+      }
+    });
+  </script>
+</body>
+</html>

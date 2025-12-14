@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>发布回收需求（运营）</title>
+  <style>
+    :root { --orange:#FF7A00; }
+    body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; margin:0; background:#FFF8F1; }
+    .container { max-width:680px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); padding:16px; }
+    label { display:block; margin:10px 0 6px; font-weight:600; }
+    input, textarea, select { width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .btn { background:var(--orange); color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; margin-top:12px; }
+    .hint { color:#666; font-size:12px; }
+    .preview { margin-top:8px; max-width:180px; border-radius:8px; border:1px solid #eee; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>发布回收需求</h2>
+    <div class="card">
+      <form id="form">
+        <label>书名</label>
+        <input name="title" required placeholder="例如：高等数学（同济七版）" />
+
+        <div class="row">
+          <div>
+            <label>需求数量（本）</label>
+            <input type="number" name="required_quantity" required min="1" />
+          </div>
+          <div>
+            <label>主题颜色</label>
+            <input type="color" name="theme_color" value="#FF7A00" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>单价下限（元/本）</label>
+            <input type="number" name="unit_price_min" step="0.01" />
+          </div>
+          <div>
+            <label>单价上限（元/本）</label>
+            <input type="number" name="unit_price_max" step="0.01" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>ISBN</label>
+            <input name="isbn" />
+          </div>
+          <div>
+            <label>出版社/版次</label>
+            <input name="publisher" placeholder="出版社" />
+          </div>
+        </div>
+
+        <label>版本（如第七版）</label>
+        <input name="edition" />
+
+        <div class="row">
+          <div>
+            <label>校区</label>
+            <input name="campus" placeholder="如：南校区自提点A" />
+          </div>
+          <div>
+            <label>截止日期</label>
+            <input type="date" name="deadline" />
+          </div>
+        </div>
+
+        <label>品相要求</label>
+        <textarea name="condition_requirements" placeholder="例如：九成新及以上，无大面积涂画"></textarea>
+
+        <label>封面图片（可选）</label>
+        <input type="file" id="cover" accept="image/*" />
+        <img id="coverPreview" class="preview" style="display:none" />
+
+        <button class="btn" type="submit">发布</button>
+        <div class="hint">发布后可在首页看到该需求。</div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const coverInput = document.getElementById('cover');
+    const coverPreview = document.getElementById('coverPreview');
+    let coverUrl = '';
+
+    coverInput.addEventListener('change', async () => {
+      const files = coverInput.files;
+      if (!files.length) return;
+      const fd = new FormData();
+      fd.append('images', files[0]);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      coverUrl = data.files[0];
+      coverPreview.src = coverUrl;
+      coverPreview.style.display = 'block';
+    });
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const body = {
+        title: form.title.value,
+        required_quantity: Number(form.required_quantity.value),
+        theme_color: form.theme_color.value || '#FF7A00',
+        unit_price_min: form.unit_price_min.value ? Number(form.unit_price_min.value) : null,
+        unit_price_max: form.unit_price_max.value ? Number(form.unit_price_max.value) : null,
+        isbn: form.isbn.value || null,
+        publisher: form.publisher.value || null,
+        edition: form.edition.value || null,
+        campus: form.campus.value || null,
+        deadline: form.deadline.value || null,
+        condition_requirements: form.condition_requirements.value || null,
+        cover_image_url: coverUrl || null
+      };
+      const res = await fetch('/api/demands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.id) {
+        alert('发布成功');
+        location.href = '/static/index.html';
+      } else {
+        alert('发布失败：' + JSON.stringify(data));
+      }
+    });
+  </script>
+</body>
+</html>

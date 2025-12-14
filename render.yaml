@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: campus-book-recycle
+    env: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production

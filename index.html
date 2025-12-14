@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>校园二手书回收—需求公告</title>
+  <style>
+    :root { --orange:#FF7A00; --bg:#FFF8F1; --text:#333; }
+    body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    header { background:var(--orange); color:#fff; padding:16px; }
+    .container { max-width:960px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); padding:16px; margin-bottom:12px; }
+    .title { font-weight:700; font-size:18px; }
+    .meta { color:#666; font-size:14px; margin-top:6px; }
+    .actions { margin-top:10px; display:flex; gap:8px; }
+    .btn { background:var(--orange); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+    .btn.secondary { background:#fff; color:var(--orange); border:1px solid var(--orange); }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    .search { display:flex; gap:8px; margin:12px 0; }
+    input[type="text"] { flex:1; padding:8px; border-radius:8px; border:1px solid #ddd; }
+    .badge { display:inline-block; background:rgba(255,122,0,0.1); color:var(--orange); padding:2px 8px; border-radius:999px; font-size:12px; margin-left:6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>校园二手书回收平台</h1>
+      <div>主题色：<span style="font-weight:bold;">橙色</span></div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="search">
+      <input id="q" type="text" placeholder="搜索书名/ISBN/出版社…" />
+      <button class="btn" onclick="loadDemands()">搜索</button>
+      <a class="btn secondary" href="/static/publish.html">发布回收需求（运营）</a>
+      <a class="btn secondary" href="/static/submit.html">我要卖书（用户投稿）</a>
+    </div>
+
+    <div id="list"></div>
+  </main>
+
+  <script>
+    async function loadDemands() {
+      const q = document.getElementById('q').value.trim();
+      const res = await fetch('/api/demands');
+      const data = await res.json();
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+
+      const filtered = q ? data.filter(d =>
+        (d.title||'').includes(q) || (d.isbn||'').includes(q) || (d.publisher||'').includes(q)
+      ) : data;
+
+      if (!filtered.length) {
+        list.innerHTML = '<div class="card">暂无需求，点击右上角“发布回收需求”添加</div>';
+        return;
+      }
+
+      filtered.forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <div class="title">${d.title}
+            ${d.isbn ? `<span class="badge">ISBN: ${d.isbn}</span>` : ''}
+            ${d.publisher ? `<span class="badge">${d.publisher}</span>` : ''}
+          </div>
+          <div class="meta">
+            版本：${d.edition || '-'} ｜ 校区：${d.campus || '-'} ｜ 截止：${d.deadline || '-'}
+          </div>
+          <div class="meta">
+            需求数量：<b>${d.required_quantity}</b> 本 ｜ 回收价格：
+            <b>${d.unit_price_min ?? '-'}</b> - <b>${d.unit_price_max ?? '-'}</b> 元/本
+          </div>
+          <div class="meta">品相要求：${d.condition_requirements || '无特别要求'}</div>
+          ${d.cover_image_url ? `<img src="${d.cover_image_url}" alt="封面" style="margin-top:8px;max-width:160px;border-radius:8px;border:1px solid #eee">` : ''}
+          <div class="actions">
+            <a class="btn secondary" href="/static/submit.html?demand_id=${d.id}">我有这本书，去投稿</a>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+    loadDemands();
+  </script>
+</body>
+</html>
